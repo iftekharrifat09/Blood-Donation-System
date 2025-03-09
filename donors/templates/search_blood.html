@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    #map {
+        width: 100%;
+        height: 100vh;
+    }
+</style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+<form method="post">
+    {% csrf_token %}
+    <label>Select Blood Group:</label>
+    <select name="blood_group" required>
+        <option value="" disabled selected>Blood Group</option>
+        <option value="A+" {% if request.POST.blood_group == "A+" %}selected{% endif %}>A+</option>
+        <option value="A-" {% if request.POST.blood_group == "A-" %}selected{% endif %}>A-</option>
+        <option value="B+" {% if request.POST.blood_group == "B+" %}selected{% endif %}>B+</option>
+        <option value="B-" {% if request.POST.blood_group == "B-" %}selected{% endif %}>B-</option>
+        <option value="O+" {% if request.POST.blood_group == "O+" %}selected{% endif %}>O+</option>
+        <option value="O-" {% if request.POST.blood_group == "O-" %}selected{% endif %}>O-</option>
+        <option value="AB+" {% if request.POST.blood_group == "AB+" %}selected{% endif %}>AB+</option>
+        <option value="AB-" {% if request.POST.blood_group == "AB-" %}selected{% endif %}>AB-</option>
+    </select>
+    
+    <label>Search Radius (km):</label>
+    <input type="number" name="radius" value="{{ request.POST.radius }}" step="0.1" min="1" required  placeholder="Enter search radius">
+
+    <button type="submit">Send Blood Request</button>
+</form>
+
+
+<h3>Donors Found:</h3>
+{% for donor in donors %}
+    <p>{{ donor.user.username }} - {{ donor.longitude }} - {{ donor.latitude }} ({{ donor.blood_group }})</p>
+{% endfor %}
+<h2>Active Blood Requests to me</h2>
+
+{% if active_requests %}
+    <table border="1">
+        <tr>
+            <th>Requester</th>
+            <th>Blood Group</th>
+            <th>Accepted Donors</th>
+            <th>Donors</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+        {% for request in active_requests %}
+        <tr>
+            <td>{{ request.requester.username }}</td>
+            <td>{{ request.blood_group }}</td>
+            <td>{{ request.accepted_count }}/2</td>
+            
+        </td>
+                
+            <td>{{ request.status }}</td>
+            <td>
+                {% if request in request.user.requests_received.all %}
+                    <a href="{% url 'accept_blood_request' request.id %}">Accept</a>
+                {% else %}
+                    Not Available
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+{% else %}
+    <p>No active blood requests available.</p>
+{% endif %}
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+    var userLat = "{{ request.user.donorprofile.latitude }}";
+    var userLng = "{{ request.user.donorprofile.longitude }}";
+    var searchRadius = "{{ request.POST.radius|default:2 }}" * 1000;  // Convert km to meters
+
+    if (!userLat || !userLng) {
+        alert("Your location is not set. Please update your location.");
+    } else {
+        var map = L.map("map").setView([userLat, userLng], 14);
+        googleHybrid = L.tileLayer('http://{s}.google.com/vt?lyrs=s,h&x={x}&y={y}&z={z}', {
+            maxZoom: 20,
+            subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+        });
+        googleHybrid.addTo(map);
+
+         // Show user's location with marker
+        L.marker([userLat, userLng]).addTo(map).bindPopup("My Location").openPopup();
+
+        // Draw a circle around user's location with search radius
+        L.circle([userLat, userLng], {
+            color: "blue",
+            fillColor: "blue",
+            fillOpacity: 0.1,
+            radius: searchRadius  // Radius in meters
+        }).addTo(map).bindPopup("Search Radius: " + (searchRadius / 1000) + " km");
+
+        // Show donors within search radius with custom marker
+        var redIcon = L.icon({
+            iconUrl: 'https://static.vecteezy.com/system/resources/previews/018/888/895/non_2x/red-map-icon-png.png', // Red marker icon
+            iconSize: [40, 40], // Adjust size if needed
+            iconAnchor: [16, 32], 
+            popupAnchor: [0, -32]
+        });
+        
+        {% for donor in donors %}
+            var popupContent = "{{ donor.user.username }} ({{ donor.blood_group }})";
+            L.marker([{{ donor.latitude }}, {{ donor.longitude }}], {icon: redIcon})
+                .addTo(map)
+                .bindPopup(popupContent);
+        {% endfor %}
+    }
+
+    function sendRequest(donorId) {
+        fetch("{% url 'send_request' %}", {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": "{{ csrf_token }}",
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: `donor_id=${donorId}`
+        })
+        .then(response => response.json())
+        .then(data => alert(data.message));
+    }
+</script>
+
+{% endblock %}

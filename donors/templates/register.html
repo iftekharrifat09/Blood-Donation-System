@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% block content %}
+    <form class="signup-form" method='post' enctype="multipart/form-data">
+        {% if type == 'signup' %}
+            <h3>User Signup</h3>
+        {% else %}
+            <h3>User Login</h3>
+        {% endif %}
+        
+        {% csrf_token %}
+        {{form|crispy}}
+        
+        {% if type == 'signup' %}
+            <button class="btn custom-btn" type='submit'><span>Signup</span></button>
+            <p >Already have an Account <a href="{% url 'login' %}"> Login</a></p>
+        {% else %}
+            <button class="btn custom-btn" type='submit'><span>Login</span></button>
+            <p >Don't Have an Account <a href="{% url 'signup' %}"> Signup</a></p>
+        {% endif %}
+    </form>
+{% endblock %}

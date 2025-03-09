@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h2>Welcome {{ user.username }}</h2>
+    <p>Your blood group: {{ user.donorprofile.blood_group }}</p>
+
+    <h3>Blood Requests</h3>
+<ul>
+    {% for req in blood_requests %}
+        {{req.id}}
+        {{req.requester.donorprofile.user.username}}
+        {{req.status}}
+        {{req.rejected}}
+        {{req.accepted}}
+        {{req.blood_group}}
+
+        
+            <strong>Accepted Donors:</strong>
+            {% if req.accepted_donors.all %}
+                <ul>
+                    {% for donor in req.accepted_donors.all %}
+
+                        <li>{{ donor.username }}- {{donor.id}}</li>
+                        <a href="{% url 'approve_blood_request' req.id donor.id %}" class="btn btn-primary">Approve</a>
+                        <a href="{% url 'reject_donor_request' req.id donor.id %}" class="btn btn-warning">Reject</a><br>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No accepted donors yet.</p>
+            {% endif %}
+            
+        
+        {% if req.status == 'Pending' %}
+            {% if user not in req.request_ignored_by_donors.all %}
+                {% if user.donorprofile.blood_group == req.blood_group %}    
+                    <a href="{% url 'accept_blood_request' req.id %}" class="btn btn-primary">Accept</a>
+                {% else %}
+                    <a class="btn btn-success">Refer/ Suggest</a><br>
+                {% endif %}
+                <a href="{% url 'ignore_blood_request' req.id %}" class="btn btn-warning">Ignore</a><br>
+            {% endif %}
+        {% endif %}
+            
+    {% endfor %}
+</ul>
+
+
+
+ <!--Script for update current location-->
+    <script>
+        function updateLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function (position) {
+                    fetch("{% url 'update_location' %}", {
+                        method: "POST",
+                        headers: {
+                            "X-CSRFToken": "{{ csrf_token }}",
+                            "Content-Type": "application/x-www-form-urlencoded"
+                        },
+                        body: `latitude=${position.coords.latitude}&longitude=${position.coords.longitude}`
+                    })
+                    .then(response => response.json())
+                    .then(data => console.log("Location updated:", data));
+                });
+            }
+        }
+        window.onload = updateLocation;
+    </script>
+{% endblock %}
+    
