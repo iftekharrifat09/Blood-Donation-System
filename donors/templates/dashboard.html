@@ -1,70 +1,425 @@
 {% extends 'base.html' %}
-
 {% block content %}
+<style>
+    #map {
+        width: 100%;
+        height: 100vh;
+    }
+    .leaflet-routing-container{
+        display: none;
+    }
+    .help-form{
+        display: flex;
+        flex-direction: column;
+        padding: 10px;
+    }
+</style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+ <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+
+
+
+
     <h2>Welcome {{ user.username }}</h2>
     <p>Your blood group: {{ user.donorprofile.blood_group }}</p>
+    <p>Your blood group: {{ user.donorprofile.latitude }} - {{user.donorprofile.longitude}}</p>
 
-    <h3>Blood Requests</h3>
-<ul>
-    {% for req in blood_requests %}
-        {{req.id}}
-        {{req.requester.donorprofile.user.username}}
-        {{req.status}}
-        {{req.rejected}}
-        {{req.accepted}}
-        {{req.blood_group}}
 
-        
-            <strong>Accepted Donors:</strong>
-            {% if req.accepted_donors.all %}
-                <ul>
-                    {% for donor in req.accepted_donors.all %}
+<h2>My blood requests to other</h2>
 
-                        <li>{{ donor.username }}- {{donor.id}}</li>
-                        <a href="{% url 'approve_blood_request' req.id donor.id %}" class="btn btn-primary">Approve</a>
-                        <a href="{% url 'reject_donor_request' req.id donor.id %}" class="btn btn-warning">Reject</a><br>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p>No accepted donors yet.</p>
-            {% endif %}
-            
-        
-        {% if req.status == 'Pending' %}
-            {% if user not in req.request_ignored_by_donors.all %}
-                {% if user.donorprofile.blood_group == req.blood_group %}    
-                    <a href="{% url 'accept_blood_request' req.id %}" class="btn btn-primary">Accept</a>
+{% if my_requests_for_blood %}
+    <table class="table table-bordered" style="width: 50%">
+        <tr>
+            <th>Requester</th>
+            <th>Blood Group</th>
+            <th>Accepted Donors</th>
+            <th>Donors</th>
+            <th>Status</th>
+            <th>Location</th>
+            <th>Action</th>
+        </tr>
+        {% for request in my_requests_for_blood %}
+        <tr>
+            <td>{{ request.requester.username }}</td>
+            <td>{{ request.blood_group }}</td>
+            <td>{{ request.accepted_count }}/2</td>
+                
+            <td>
+                {% if request.accepted_donors.all %}
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Donar Name</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        {% for donor in request.accepted_donors.all %}
+                        <tbody>
+                            <tr>
+                                <td>{{ donor.username }}- {{donor.id}}</td>
+                                <td>
+                                    {% if donor in request.final_donors.all %}
+                                        <p class="badge bg-success">Approved</p>
+                                    {% elif donor in request.rejected_donors_by_requester.all %}
+                                        <p class="badge bg-danger">Rejected</p>
+                                    {% else %}
+                                        <a href="{% url 'approve_blood_request' request.id donor.id %}" class="btn btn-primary">Approve</a>
+                                        <a href="{% url 'reject_donor_request' request.id donor.id %}" class="btn btn-warning">Reject</a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                        {% endfor %}
+                    </table>
+                            
+                    
                 {% else %}
-                    <a class="btn btn-success">Refer/ Suggest</a><br>
+                    <p>No accepted donors yet.</p>
                 {% endif %}
-                <a href="{% url 'ignore_blood_request' req.id %}" class="btn btn-warning">Ignore</a><br>
-            {% endif %}
-        {% endif %}
+            </td>
+            <td>{{ request.status }}</td>
+            <td>
+                
+                {% if request.final_donors.all %}
+                    <button onclick="showRequestOnMap({{ request.id }})">See on Map</button>
+                {% else %}
+                    <p>No donor found</p>
+                    
+                {% endif %}
+                    
+            </td>
+            <td><a href="{% url 'delete_blood_request' request.id %}" class="btn btn-danger">Delete</a></td>
             
-    {% endfor %}
-</ul>
+        </tr>
+        {% endfor %}
+    </table>
+{% else %}
+    <p>No active blood requests available.</p>
+{% endif %}
+
+
+<h2 class="mt-4">Active Blood Requests to me my blood type</h2>
+
+{% if active_requests_myGroup %}
+    <table border="1" style="width: 80%">
+        <tr>
+            <th>Requester</th>
+            <th>Blood Group</th>
+            <th>Detailed Location</th>
+            <th>Patient Details</th>
+            <th>Contact Number</th>
+            <th>Accepted Donors</th>
+            <th>Status</th>
+            <th>Location</th>
+            <th>Action</th>
+        </tr>
+        {% for request in active_requests_myGroup %}
+            {% if user not in request.request_ignored_by_donors.all %}
+                <tr>
+                    <td>{{ request.requester.username }}</td>
+                    <td>{{ request.blood_group }}</td>
+                    <td>{{ request.detail_address }}</td>
+                    <td>{{ request.description }}</td>
+                    <td>{{ request.requester.donorprofile.phone }}</td>
+                    <td>{{ request.accepted_count }}/2</td>
+                        
+                    <td>
+                        {% if request.accepted_count == 0 %}
+                            {{ request.status }}
+                        {% elif request.accepted_count == 2 %}
+                            {{ request.status }}
+                        {% else %}
+                            <p>Searching others</p>
+                        {% endif %}    
+                    </td>
+                    <td><button onclick="showReceiverOnMap({{ request.id }})">See on Map</button></td>
+                    <td>
+                        
+                
+                            {% if user in request.final_donors.all %}
+                                <p class="badge bg-success">Confirmed</p>
+                            {% elif user in request.accepted_donors.all %}
+
+                                {% if user in request.rejected_donors_by_requester.all %}
+                                    <p class="badge bg-danger">Rejected</p>
+                                    <a href="{% url 'ignore_blood_request' request.id %}" class="btn btn-danger">Delete</a>
+                                {% else %}
+                                    <p class="badge bg-primary">Approval Waiting</p>
+                                {% endif %}
+
+                            {% else %}
+
+                               {% if request.accepted_count != 2 %}
+                                    <a href="{% url 'accept_blood_request' request.id %}" class="btn btn-primary">Accept</a>
+                               {% endif %}
+                                <a href="{% url 'ignore_blood_request' request.id %}" class="btn btn-warning">Ignore</a>
+
+                            {% endif %}
+                        
+                    </td>
+                </tr>
+            {% endif %}
+        {% endfor %}
+    </table>
+{% else %}
+    <p>No active blood requests available.</p>
+{% endif %}
 
 
 
- <!--Script for update current location-->
-    <script>
-        function updateLocation() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(function (position) {
+<h2 class="mt-4">Active Blood Requests to me not my blood type</h2>
+
+{% if active_requests_otherGroup %}
+    <table border="1" style="width: 80%">
+        <tr>
+            <th>Requester</th>
+            <th>Blood Group</th>
+            <th>Accepted Donors</th>
+            <th>Detailed Location</th>
+            <th>Patient Details</th>
+            <th>Contact Number</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+        {% for request in active_requests_otherGroup %}
+            {% if user not in request.request_ignored_by_donors.all %}
+                <tr>
+                    <td>{{ request.requester.username }}</td>
+                    <td>{{ request.blood_group }}</td>
+                    <td>{{ request.accepted_count }}/2</td>
+                    <td>{{ request.detail_address }}</td>
+                    <td>{{ request.description }}</td>
+                    <td>{{ request.requester.donorprofile.phone }}</td>
+                    <td>
+                        {% if request.accepted_count == 0 %}
+                            {{ request.status }}
+                        {% elif request.accepted_count == 2 %}
+                            {{ request.status }}
+                        {% else %}
+                            <p>Searching others</p>
+                        {% endif %} 
+                    </td>
+                    <td>
+                        
+                        {% if request.status == 'Pending' %}
+                            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#delete-confirmation-helpForm" style="box-shadow: 3px 3px 10px rgba(255, 255, 255, 0.6)">Help</button>
+                            <!-- Help form modal -->
+                            <div
+                            class="modal fade"
+                            id="delete-confirmation-helpForm"
+                            tabindex="-1"
+                            aria-labelledby="deleteModalLabel-helpForm"
+                            aria-hidden="true"
+                            >
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                        <h3
+                                            class="modal-title"
+                                            id="deleteModalLabel-01"
+                                        >
+                                            Helping Form
+                                        </h3>
+                                        <button
+                                            type="button"
+                                            class="btn-close"
+                                            data-bs-dismiss="modal"
+                                            aria-label="Close"
+                                        ></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <form  method="POST" action="{% url 'help_form' user.id request.requester.id request.id %}">
+                                                {% csrf_token %}
+                                                <div class="help-form">
+                                                    <label for="name">Name:</label>
+                                                    <input type="text" id="name" name="name" required>
+                                                
+                                                    <label for="phone">Phone Number:</label>
+                                                    <input type="tel" id="phone" name="phone" required>
+                                                
+                                                    <label for="message">Message:</label>
+                                                    <textarea id="message" name="message" rows="4" required></textarea>
+                                                </div>
+                                            
+                                                <button type="submit" >Submit</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <a href="{% url 'ignore_blood_request' request.id %}" class="btn btn-warning">Ignore</a>
+                        {% else %}
+                            <p>Nothing to do</p>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endif %}
+        {% endfor %}
+    </table>
+{% else %}
+    <p>No active blood requests available.</p>
+{% endif %}
+
+
+<div id="map"></div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!--Script for update current location-->
+<script>
+    function updateLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                function (position) {
                     fetch("{% url 'update_location' %}", {
                         method: "POST",
                         headers: {
                             "X-CSRFToken": "{{ csrf_token }}",
                             "Content-Type": "application/x-www-form-urlencoded"
                         },
-                        body: `latitude=${position.coords.latitude}&longitude=${position.coords.longitude}`
+                        body: new URLSearchParams({
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude
+                        })
                     })
                     .then(response => response.json())
-                    .then(data => console.log("Location updated:", data));
-                });
-            }
+                    .then(data => console.log("Location updated:", data))
+                    .catch(error => console.error("Error updating location:", error));
+                },
+                function (error) {
+                    console.error("Error getting location:", error.message);
+                }
+            );
+        } else {
+            console.error("Geolocation is not supported by this browser.");
         }
-        window.onload = updateLocation;
-    </script>
+    }
+    window.onload = updateLocation;
+ </script>
+<!-- Include Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+
+
+<script>
+    var userLat = "{{ request.user.donorprofile.latitude }}";
+    var userLng = "{{ request.user.donorprofile.longitude }}";
+    
+    if (!userLat || !userLng) {
+        alert("Your location is not set. Please update your location.");
+    } else {
+        var map = L.map("map").setView([userLat, userLng], 14);
+        
+        googleHybrid = L.tileLayer('http://{s}.google.com/vt?lyrs=s,h&x={x}&y={y}&z={z}', {
+            maxZoom: 22,
+            subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+        });
+        googleHybrid.addTo(map);
+    
+        // Show user's location with marker
+        L.marker([userLat, userLng]).addTo(map).bindPopup("My Location").openPopup();
+    }
+
+    var redIcon = L.icon({
+        iconUrl: 'https://static.vecteezy.com/system/resources/previews/018/888/895/non_2x/red-map-icon-png.png',
+        iconSize: [40, 40],
+        iconAnchor: [16, 32], 
+        popupAnchor: [0, -32]
+    });
+
+    var currentLayerGroup = null;
+    var currentRoute = null;
+
+    // show the all the donor for a specific request
+    function showRequestOnMap(requestId) {
+        // Remove previous markers and routes
+        if (currentLayerGroup) {
+            map.removeLayer(currentLayerGroup);
+        }
+        if (currentRoute) {
+            map.removeControl(currentRoute);
+        }
+
+        // Create a new layer group for this request
+        currentLayerGroup = L.layerGroup().addTo(map);
+        var waypoints = [L.latLng(userLat, userLng)];
+
+        {% for request in my_requests_for_blood %}
+            if (requestId === {{ request.id }}) {
+                {% for donor in request.final_donors.all %}
+                    var donorLatLng = L.latLng({{ donor.donorprofile.latitude }}, {{ donor.donorprofile.longitude }});
+                    var popupContent = "{{ donor.donorprofile.user.username }} ({{ donor.donorprofile.blood_group }})";
+                    
+                    // Add donor marker
+                    var donorMarker = L.marker(donorLatLng, {icon: redIcon}).bindPopup(popupContent);
+                    currentLayerGroup.addLayer(donorMarker);
+                    
+                    // Add donor location to waypoints
+                    waypoints.push(donorLatLng);
+                {% endfor %}
+            }
+        {% endfor %}
+
+        // Draw the route for this request
+        if (waypoints.length > 1) { 
+            currentRoute = L.Routing.control({
+                waypoints: waypoints,
+                addWaypoints: false,
+                createMarker: function() { return null; } // Hide default markers
+            }).addTo(map);
+        }
+    }
+
+    //show the receiver to the donor
+    function showReceiverOnMap(requestId) {
+        // Remove previous markers and routes
+        if (currentLayerGroup) {
+            map.removeLayer(currentLayerGroup);
+        }
+        if (currentRoute) {
+            map.removeControl(currentRoute);
+        }
+    
+        // Create a new layer group for this request
+        currentLayerGroup = L.layerGroup().addTo(map);
+        var waypoints = [L.latLng(userLat, userLng)];
+    
+        {% for request in active_requests_myGroup %}
+            if (requestId === {{ request.id }}) {
+                var receiverLatLng = L.latLng({{ request.requester.donorprofile.latitude }}, {{ request.requester.donorprofile.longitude }});
+                var popupContent = "{{ request.requester.username }} ({{ request.blood_group }})";
+    
+                // Add receiver marker
+                var receiverMarker = L.marker(receiverLatLng, {icon: redIcon}).bindPopup(popupContent);
+                currentLayerGroup.addLayer(receiverMarker);
+    
+                // Add receiver location to waypoints
+                waypoints.push(receiverLatLng);
+            }
+        {% endfor %}
+    
+        // Draw the route for this request
+        if (waypoints.length > 1) { 
+            currentRoute = L.Routing.control({
+                waypoints: waypoints,
+                addWaypoints: false,
+                createMarker: function() { return null; } // Hide default markers
+            }).addTo(map);
+        }
+    }
+</script>
+
 {% endblock %}
     

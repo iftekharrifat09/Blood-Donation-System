@@ -37,3 +37,12 @@ class DonationHistory(models.Model):
 
     def __str__(self):
         return f"{self.donor.username} donated to {self.receiver.username}"
+    
+class HelpRequester(models.Model):
+    blood_request_id = models.IntegerField(10, blank=True, null=True)
+    helper = models.ForeignKey(User, on_delete=models.CASCADE, related_name="helper", null=True, blank=True)
+    requester = models.ForeignKey(User, on_delete=models.CASCADE, related_name="requester", null=True, blank=True)
+    blood_group = models.CharField(max_length=3, choices=BLOOD_GROUPS)
+    name = models.CharField(max_length=100)
+    phone = models.CharField(max_length=15)
+    message = models.TextField(null=True, blank=True)

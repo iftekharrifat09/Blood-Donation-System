@@ -13,5 +13,7 @@ urlpatterns = [
     path("ignore-blood-request/<int:request_id>", views.ignore_blood_request, name="ignore_blood_request"),
     path("approve-blood-request/<int:request_id>/<int:donor_id>", views.approve_blood_request, name="approve_blood_request"),
     path("reject-donor-request/<int:request_id>/<int:donor_id>", views.reject_donor_request, name="reject_donor_request"),
+    path("delete-blood-request/<int:request_id>", views.delete_blood_request, name="delete_blood_request"),
+    path('submit-form/<int:sender_id>/<int:requester_id>/<int:request_id>/', views.help_form, name='help_form'),
     
 ]
