@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    #map { width: 100%; height: 100vh; }
+    .leaflet-routing-container { display: none; }
+    #search-box, #find-location-btn {
+        position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+        z-index: 1000; padding: 8px; border-radius: 5px; border: 1px solid #ccc;
+    }
+    .radius-field{
+        position: absolute; top: 10px; left: 40%; transform: translateX(-60%);
+        z-index: 1000; padding: 8px; border-radius: 5px; border: 1px solid #ccc;
+    }
+    #find-location-btn { background: red; color: white; cursor: pointer;
+    margin-left: 200px; }
+    #search-results {
+        position: absolute; top: 50px; left: 50%; transform: translateX(-50%);
+        z-index: 1000; width: 300px; background: white; border: 1px solid #ccc;
+        max-height: 200px; overflow-y: auto; display: none;
+    }
+    .search-result-item { padding: 8px; cursor: pointer; }
+    .search-result-item:hover { background: #f0f0f0; }
+</style>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+
+<form class="request-form" method="post">
+    {% csrf_token %}
+    <label>Select Blood Group:</label>
+    <select name="blood_group" required>
+        <option value="" disabled selected>Blood Group</option>
+        <option value="A+">A+</option>
+        <option value="A-">A-</option>
+        <option value="B+">B+</option>
+        <option value="B-">B-</option>
+        <option value="O+">O+</option>
+        <option value="O-">O-</option>
+        <option value="AB+">AB+</option>
+        <option value="AB-">AB-</option>
+    </select>
+    
+    <label>Enter Name:</label>
+    <input type="text" name="name" required placeholder="Enter your name">
+
+    <label>Detail Address:</label>
+    <input type="text" name="address" required placeholder="Enter detailed address">
+
+    <label>Enter Contact Number:</label>
+    <input type="text" name="contact" required placeholder="Enter contact number">
+
+    <label>Enter The Donation Date:</label>
+    <input type="date" name="donation_date" required>
+
+    <label>Enter The Donation Time:</label>
+    <input type="time" name="donation_time" required>
+
+    <label for="donation_note">Note:</label>
+    <textarea id="donation_note" name="donation_note" required placeholder="Write your note here"></textarea>
+
+    <!-- Hidden inputs to store patient location -->
+    <input type="hidden" name="patient_latitude" id="patient_latitude">
+    <input type="hidden" name="patient_longitude" id="patient_longitude">
+    <input type="hidden" name="the_radius" id="selected-radius">
+
+    <button type="submit">Send Blood Request</button>
+</form>
+
+<!-- Search Box with Button -->
+<div>
+    <input type="number" class="radius-field" name="radius" step="0.1" min="1" required placeholder="Search Radius (km)">
+    <input type="text" id="search-box" placeholder="Search location (e.g. Hospital, City)">
+    <button id="find-location-btn">Find Location</button>
+</div>
+<div id="search-results"></div>
+
+<h3>Donors Found:</h3>
+{% for donor in donors %}
+    <p>{{ donor.user.username }} - {{ donor.longitude }} - {{ donor.latitude }} ({{ donor.blood_group }})</p>
+{% endfor %}
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+
+<script>
+    // Listen for the form submission
+    document.querySelector(".request-form").addEventListener("submit", function(event) {
+        // Get the radius input field value
+        const radiusValue = document.querySelector(".radius-field").value;
+
+        // Update the hidden input field with the radius value
+        document.getElementById("selected-radius").value = radiusValue;
+    });
+</script>
+
+<script>
+    const map = L.map("map").setView([23.8103, 90.4125], 14);
+    L.tileLayer('https://{s}.google.com/vt?lyrs=s,h&x={x}&y={y}&z={z}', {
+        maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+    }).addTo(map);
+
+    let patientMarker = null, searchCircle = null;
+
+    function setPatientLocation(lat, lng) {
+        if (patientMarker) {
+            map.removeLayer(patientMarker); // Remove existing marker if it exists
+        }
+        if (searchCircle) {
+            map.removeLayer(searchCircle); // Remove existing circle if it exists
+        }
+
+        // Create a new draggable marker at the given location
+        patientMarker = L.marker([lat, lng], { draggable: true }).addTo(map)
+            .bindPopup("Patient Location")
+            .openPopup();
+
+        // When the marker is dragged, update the hidden input values
+        patientMarker.on('dragend', function() {
+            const position = patientMarker.getLatLng();
+            document.getElementById("patient_latitude").value = position.lat;
+            document.getElementById("patient_longitude").value = position.lng;
+
+            // Move the circle along with the marker
+            searchCircle.setLatLng(position);
+        });
+        
+        let radius = parseFloat(document.querySelector("input[name='radius']").value || 1) * 1000;
+        searchCircle = L.circle([lat, lng], { color: "blue", fillOpacity: 0.1, radius }).addTo(map);
+
+        // Update hidden fields with the new location
+        document.getElementById("patient_latitude").value = lat;
+        document.getElementById("patient_longitude").value = lng;
+    }
+
+    navigator.geolocation.getCurrentPosition(position => {
+        setPatientLocation(position.coords.latitude, position.coords.longitude);
+    }, () => {
+        console.warn("Geolocation permission denied or not available.");
+    });
+
+    function performSearch(query) {
+        if (!query.trim()) return;
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}`)
+        .then(response => response.json())
+        .then(data => {
+            let resultsDiv = document.getElementById("search-results");
+            resultsDiv.innerHTML = "";
+            resultsDiv.style.display = data.length ? "block" : "none";
+
+            data.forEach(place => {
+                let div = document.createElement("div");
+                div.className = "search-result-item";
+                div.textContent = place.display_name;
+                div.onclick = () => {
+                    setPatientLocation(place.lat, place.lon);
+                    document.getElementById("search-box").value = place.display_name;
+                    resultsDiv.style.display = "none";
+                };
+                resultsDiv.appendChild(div);
+            });
+        })
+        .catch(error => console.error("Error fetching location data:", error));
+    }
+
+    document.getElementById("find-location-btn").addEventListener("click", function() {
+        performSearch(document.getElementById("search-box").value);
+    });
+
+    // Show donors within search radius with custom marker
+    var redIcon = L.icon({
+        iconUrl: 'https://static.vecteezy.com/system/resources/previews/018/888/895/non_2x/red-map-icon-png.png', // Red marker icon
+        iconSize: [40, 40], // Adjust size if needed
+        iconAnchor: [16, 32], 
+        popupAnchor: [0, -32]
+    });
+
+    
+    {% for donor in donors %}
+        var donorLatLng = L.latLng({{ donor.latitude }}, {{ donor.longitude }});
+        var popupContent = "{{ donor.user.username }} ({{ donor.blood_group }})";
+        L.marker(donorLatLng,  {icon: redIcon}).addTo(map)
+            .bindPopup(popupContent);
+        
+    {% endfor %}
+
+    // Show lat and long in the top right corner when hovering on the map
+    const latLongDisplay = L.DomUtil.create('div', 'lat-long-display');
+    latLongDisplay.style.position = 'absolute';
+    latLongDisplay.style.top = '10px';
+    latLongDisplay.style.right = '10px';
+    latLongDisplay.style.backgroundColor = 'white';
+    latLongDisplay.style.padding = '5px';
+    latLongDisplay.style.border = '1px solid #ccc';
+    latLongDisplay.style.zIndex = 1000;
+    latLongDisplay.style.borderRadius = '5px';
+    latLongDisplay.innerHTML = "Lat: 0, Lng: 0";
+    map.getContainer().appendChild(latLongDisplay);
+
+    // Update the displayed lat and long as the mouse moves
+    map.on('mousemove', function(e) {
+        const lat = e.latlng.lat.toFixed(6);
+        const lng = e.latlng.lng.toFixed(6);
+        latLongDisplay.innerHTML = `Lat: ${lat}, Lng: ${lng}`;
+    });
+    
+</script>
+
+
+
+
+{% endblock %}

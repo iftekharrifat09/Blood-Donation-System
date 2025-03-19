@@ -3,7 +3,7 @@ from django.contrib.auth import login, authenticate, logout
 from django.contrib import messages
 from django.contrib.auth.forms import AuthenticationForm
 from .forms import RegisterForm
-from .models import DonorProfile, BloodRequest, DonationHistory, HelpRequester
+from .models import DonorProfile, BloodRequest, DonationHistory, HelpRequester, CustomBloodRequest
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.core.mail import send_mail
@@ -11,6 +11,7 @@ from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
 from math import radians, cos, sin, sqrt, atan2
 from django.db.models import Q
+from collections import defaultdict
 
 
 def user_signup(request):
@@ -45,32 +46,27 @@ def user_logout(request):
     return redirect('login')
 
 def dashboard(request):
-    
-    if request.method == 'POST':
-        if 'help_form' in request.POST:
-            name = request.POST.get("name")
-            phone = request.POST.get("phone")
-            message = request.POST.get("message")
-            print(name, phone, message)
-            
-            # HelpRequester.objects.create(
-            #     helper = 
-            #     requester=request.user,
-            #     name=name,
-            #     phone=phone,
-            #     blood_group=blood_group,
-            #     message=message
-            # )
 
     my_requests_for_blood = BloodRequest.objects.filter(requester=request.user).order_by("-created_at")
     active_requests_myGroup = BloodRequest.objects.filter(blood_group=request.user.donorprofile.blood_group, donors__in=[request.user]).exclude(requester=request.user).order_by("-created_at")
     #, accepted_donors__in=[request.user] 
     active_requests_otherGroup = BloodRequest.objects.filter(status="Pending").exclude(Q(requester=request.user) | Q(blood_group=request.user.donorprofile.blood_group)).order_by("-created_at")
+    requester_id =  request.user.id
+    requester = get_object_or_404(DonorProfile, user_id=requester_id)
+    print(requester)
+    help_post = HelpRequester.objects.filter(requester = requester).order_by("-created_at")
+    
+    if help_post:
+        for post in help_post:
+            print(post.id)
+    else:
+        print("No help post found")
          
     context = {
         "my_requests_for_blood": my_requests_for_blood,
         "active_requests_myGroup": active_requests_myGroup,
-        "active_requests_otherGroup": active_requests_otherGroup,        
+        "active_requests_otherGroup": active_requests_otherGroup, 
+        "help_post": help_post
     }
     return render(request, "dashboard.html", context)
 
@@ -276,9 +272,111 @@ def help_form(request, sender_id, requester_id, request_id):
         name = request.POST.get("name")
         phone = request.POST.get("phone")
         message = request.POST.get("message")
-        sender = get_object_or_404(DonorProfile, id=sender_id)
+        
+        sender = get_object_or_404(DonorProfile, user_id=sender_id)
         requester = get_object_or_404(DonorProfile, id=requester_id)
-        print(name, phone, message, sender_id, requester_id, request_id)
+        print(sender, requester)
+        print(name, phone, message, sender_id, requester_id, request_id,  sender.blood_group)
+        
+        print(DonorProfile.objects.filter(id=sender_id).exists())  # Check if sender exists
+        print(DonorProfile.objects.filter(id=requester_id).exists())  
         # You can process and save the data here if needed
+        # Save the help request
+        HelpRequester.objects.create(
+            blood_request_id=request_id,
+            helper=sender,
+            requester=requester,
+            blood_group=sender.blood_group,
+            name=name,
+            phone=phone,
+            message=message,
+        )
+
     return redirect('dashboard')  # Redirect back to the dashboard
+
+
+def custom_blood_request(request):
+    return render(request, 'custom_blood_request.html')
+
+
+@login_required
+@login_required
+def create_blood_request(request):
+    donors = []  # Initialize donors with an empty list by default
+
+    if request.method == "POST":
+        blood_group = request.POST.get("blood_group")
+        radius_km = float(request.POST.get("the_radius"))  # You can use this if you plan to use the radius for further processing.
+        print("The radius is: ", radius_km)
+        name = request.POST.get("name")
+        address = request.POST.get("address")
+        contact = request.POST.get("contact")
+        donation_date = request.POST.get("donation_date")
+        donation_time = request.POST.get("donation_time")
+        note = request.POST.get("donation_note")
+
+        # Convert latitude and longitude from string to float
+        try:
+            patient_lat = float(request.POST.get("patient_latitude"))
+            patient_lng = float(request.POST.get("patient_longitude"))
+        except ValueError:
+            messages.error(request, "Invalid latitude or longitude values.")
+            return redirect("create_blood_request")
+
+        # Function to calculate distance
+        def calculate_distance(lat1, lon1, lat2, lon2):
+            R = 6371  # Radius of the Earth in km
+            lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+            dlat = lat2 - lat1
+            dlon = lon2 - lon1
+            a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+            c = 2 * atan2(sqrt(a), sqrt(1 - a))
+            return R * c  # Distance in km
+        
+        # Get all donors with the requested blood group
+        all_donors = DonorProfile.objects.filter(blood_group=blood_group).exclude(user=request.user)
+        
+        # Filter donors within the radius
+        donors = [donor for donor in all_donors if calculate_distance(patient_lat, patient_lng, donor.latitude, donor.longitude) <= radius_km]
+        
+        for donor in donors:
+            print(donor.user.username)
+        
+        if not (blood_group and address and contact and donation_date and donation_time):
+            messages.error(request, "All required fields must be filled.")
+            return redirect("create_blood_request")
+
+        # Convert contact number to integer
+        try:
+            contact_number = int(contact)
+        except ValueError:
+            messages.error(request, "Invalid contact number.")
+            return redirect("create_blood_request")
+
+        # Handle latitude and longitude
+        try:
+            latitude = float(request.POST.get('latitude')) if request.POST.get('latitude') else None
+            longitude = float(request.POST.get('longitude')) if request.POST.get('longitude') else None
+        except ValueError:
+            messages.error(request, "Invalid latitude or longitude values.")
+            return redirect("create_blood_request")
+
+        # Create the blood request
+        blood_request = CustomBloodRequest.objects.create(
+            requester=request.user,
+            blood_group=blood_group,
+            detail_address=address,
+            contact_number=contact_number,
+            note=note,
+            donation_date=donation_date,
+            donation_time=donation_time,
+            receiver_latitude=latitude,
+            receiver_longitude=longitude,
+            status="Pending"
+        )
+        
+        messages.success(request, "Blood request submitted successfully!")
+        # return redirect("dashboard")  # Redirect to homepage or another page
+
+    return render(request, "custom_blood_request.html", {"donors": donors, "patient_lat": patient_lat, "patient_lon": patient_lng})
 

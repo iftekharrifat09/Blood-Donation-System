@@ -9,6 +9,7 @@ urlpatterns = [
     path("update-location/", views.update_location, name="update_location"),
     path("search-blood/", views.search_blood, name="search_blood"),
     path("send-request/", views.send_request, name="send_request"),
+    path("custom-blood-request/", views.create_blood_request, name="create_blood_request"),
     path("accept-blood-request/<int:request_id>", views.accept_blood_request, name="accept_blood_request"),
     path("ignore-blood-request/<int:request_id>", views.ignore_blood_request, name="ignore_blood_request"),
     path("approve-blood-request/<int:request_id>/<int:donor_id>", views.approve_blood_request, name="approve_blood_request"),

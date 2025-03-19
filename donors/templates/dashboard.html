@@ -26,15 +26,16 @@
     <p>Your blood group: {{ user.donorprofile.latitude }} - {{user.donorprofile.longitude}}</p>
 
 
-<h2>My blood requests to other</h2>
+<h2>My blood requests to other (Emergency)</h2>
 
 {% if my_requests_for_blood %}
-    <table class="table table-bordered" style="width: 50%">
+    <table class="table table-bordered" style="width: 80%">
         <tr>
             <th>Requester</th>
             <th>Blood Group</th>
             <th>Accepted Donors</th>
             <th>Donors</th>
+            <th>Help</th>
             <th>Status</th>
             <th>Location</th>
             <th>Action</th>
@@ -77,6 +78,27 @@
                 {% else %}
                     <p>No accepted donors yet.</p>
                 {% endif %}
+            </td>
+            <td>     
+                {% if help_post %}
+                <p>{{help_post|length}}</p>
+                    <button>See</button>
+                    {% for post in help_post %}
+                        {% if post.blood_request_id == request.id %}
+                            <p>{{ post.helper.user.username}}</p>
+                            <p>{{ post.name }}</p>
+                            <p>{{ post.phone }}</p>
+                            <p>{{ post.created_at }}</p>
+                            <hr>  
+                                       
+                        {% endif %}
+                            
+                    {% endfor %}
+                        
+                {% else %}
+                    <p>No post</p>
+                {% endif %}
+                    
             </td>
             <td>{{ request.status }}</td>
             <td>
@@ -133,7 +155,7 @@
                             <p>Searching others</p>
                         {% endif %}    
                     </td>
-                    <td><button onclick="showReceiverOnMap({{ request.id }})">See on Map</button></td>
+                    <td><button onclick="showReceiverOnMap({{ request.id }}, 'myGroup')">See on Map</button></td>
                     <td>
                         
                 
@@ -180,6 +202,7 @@
             <th>Patient Details</th>
             <th>Contact Number</th>
             <th>Status</th>
+            <th>Location</th>
             <th>Action</th>
         </tr>
         {% for request in active_requests_otherGroup %}
@@ -200,16 +223,17 @@
                             <p>Searching others</p>
                         {% endif %} 
                     </td>
+                    <td><button onclick="showReceiverOnMap({{ request.id }},'otherGroup')">See on Map</button></td>
                     <td>
                         
                         {% if request.status == 'Pending' %}
-                            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#delete-confirmation-helpForm" style="box-shadow: 3px 3px 10px rgba(255, 255, 255, 0.6)">Help</button>
+                            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#helpForm-{{request.id}}" style="box-shadow: 3px 3px 10px rgba(255, 255, 255, 0.6)">Help</button>
                             <!-- Help form modal -->
                             <div
                             class="modal fade"
-                            id="delete-confirmation-helpForm"
+                            id="helpForm-{{request.id}}"
                             tabindex="-1"
-                            aria-labelledby="deleteModalLabel-helpForm"
+                            aria-labelledby="ModalLabel-helpForm"
                             aria-hidden="true"
                             >
                                 <div class="modal-dialog modal-dialog-centered">
@@ -217,7 +241,7 @@
                                         <div class="modal-header">
                                         <h3
                                             class="modal-title"
-                                            id="deleteModalLabel-01"
+                                            id="ModalLabel-{{request.id}}"
                                         >
                                             Helping Form
                                         </h3>
@@ -229,7 +253,7 @@
                                         ></button>
                                         </div>
                                         <div class="modal-body">
-                                            <form  method="POST" action="{% url 'help_form' user.id request.requester.id request.id %}">
+                                            <form  method="POST" action="{% url 'help_form' user.id request.requester.donorprofile.id request.id %}">
                                                 {% csrf_token %}
                                                 <div class="help-form">
                                                     <label for="name">Name:</label>
@@ -383,7 +407,7 @@
     }
 
     //show the receiver to the donor
-    function showReceiverOnMap(requestId) {
+    function showReceiverOnMap(requestId, command) {
         // Remove previous markers and routes
         if (currentLayerGroup) {
             map.removeLayer(currentLayerGroup);
@@ -395,21 +419,40 @@
         // Create a new layer group for this request
         currentLayerGroup = L.layerGroup().addTo(map);
         var waypoints = [L.latLng(userLat, userLng)];
-    
-        {% for request in active_requests_myGroup %}
-            if (requestId === {{ request.id }}) {
-                var receiverLatLng = L.latLng({{ request.requester.donorprofile.latitude }}, {{ request.requester.donorprofile.longitude }});
-                var popupContent = "{{ request.requester.username }} ({{ request.blood_group }})";
-    
-                // Add receiver marker
-                var receiverMarker = L.marker(receiverLatLng, {icon: redIcon}).bindPopup(popupContent);
-                currentLayerGroup.addLayer(receiverMarker);
-    
-                // Add receiver location to waypoints
-                waypoints.push(receiverLatLng);
-            }
-        {% endfor %}
-    
+        
+        if(command === 'myGroup'){
+            console.log("My Group")
+            {% for request in active_requests_myGroup %}
+                if (requestId === {{ request.id }}) {
+                    var receiverLatLng = L.latLng({{ request.requester.donorprofile.latitude }}, {{ request.requester.donorprofile.longitude }});
+                    var popupContent = "{{ request.requester.username }} ({{ request.blood_group }})";
+        
+                    // Add receiver marker
+                    var receiverMarker = L.marker(receiverLatLng, {icon: redIcon}).bindPopup(popupContent);
+                    currentLayerGroup.addLayer(receiverMarker);
+        
+                    // Add receiver location to waypoints
+                    waypoints.push(receiverLatLng);
+                }
+            {% endfor %}
+        }else{
+            console.log("Other Group")
+            {% for request in active_requests_otherGroup %}
+                if (requestId === {{ request.id }}) {
+                    var receiverLatLng = L.latLng({{ request.requester.donorprofile.latitude }}, {{ request.requester.donorprofile.longitude }});
+                    var popupContent = "{{ request.requester.username }} ({{ request.blood_group }})";
+        
+                    // Add receiver marker
+                    var receiverMarker = L.marker(receiverLatLng, {icon: redIcon}).bindPopup(popupContent);
+                    currentLayerGroup.addLayer(receiverMarker);
+        
+                    // Add receiver location to waypoints
+                    waypoints.push(receiverLatLng);
+                }
+            {% endfor %}
+        }
+            
+        
         // Draw the route for this request
         if (waypoints.length > 1) { 
             currentRoute = L.Routing.control({
