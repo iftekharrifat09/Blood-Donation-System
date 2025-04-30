@@ -12,10 +12,10 @@
         {{form|crispy}}
         
         {% if type == 'signup' %}
-            <button class="btn custom-btn" type='submit'><span>Signup</span></button>
+            <button class="custom-btn" type='submit'><span>Signup</span></button>
             <p >Already have an Account <a href="{% url 'login' %}"> Login</a></p>
         {% else %}
-            <button class="btn custom-btn" type='submit'><span>Login</span></button>
+            <button class="custom-btn" type='submit'><span>Login</span></button>
             <p >Don't Have an Account <a href="{% url 'signup' %}"> Signup</a></p>
         {% endif %}
     </form>

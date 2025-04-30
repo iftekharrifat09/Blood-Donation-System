@@ -81,14 +81,23 @@
             </td>
             <td>     
                 {% if help_post %}
-                <p>{{help_post|length}}</p>
-                    <button>See</button>
+                    <p>{{help_post|length}}</p>
+                    {% if request.id not in help_post.blood_request_id.all %}
+                        <p>No hel</p>
+                    {% endif %}
+                        
                     {% for post in help_post %}
+                        <p>{{post.blood_request_id}}</p>
                         {% if post.blood_request_id == request.id %}
                             <p>{{ post.helper.user.username}}</p>
                             <p>{{ post.name }}</p>
                             <p>{{ post.phone }}</p>
                             <p>{{ post.created_at }}</p>
+                            <p>{{ post.message }}</p>
+                            <p>{{ post.id }}</p>
+                            <p>{{ post.blood_request_id }}</p>
+                            <p>{{ request.id }}</p>
+                            <button>See</button>
                             <hr>  
                                        
                         {% endif %}

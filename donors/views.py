@@ -13,6 +13,8 @@ from math import radians, cos, sin, sqrt, atan2
 from django.db.models import Q
 from collections import defaultdict
 
+def home_page(request):
+    return render(request, "home_page.html")
 
 def user_signup(request):
     if request.method == "POST":
