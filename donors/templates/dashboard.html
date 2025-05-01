@@ -79,36 +79,52 @@
                     <p>No accepted donors yet.</p>
                 {% endif %}
             </td>
-            <td>     
-                {% if help_post %}
-                    <p>{{help_post|length}}</p>
-                    {% if request.id not in help_post.blood_request_id.all %}
-                        <p>No hel</p>
-                    {% endif %}
-                        
-                    {% for post in help_post %}
-                        <p>{{post.blood_request_id}}</p>
-                        {% if post.blood_request_id == request.id %}
-                            <p>{{ post.helper.user.username}}</p>
-                            <p>{{ post.name }}</p>
-                            <p>{{ post.phone }}</p>
-                            <p>{{ post.created_at }}</p>
-                            <p>{{ post.message }}</p>
-                            <p>{{ post.id }}</p>
-                            <p>{{ post.blood_request_id }}</p>
-                            <p>{{ request.id }}</p>
-                            <button>See</button>
-                            <hr>  
-                                       
-                        {% endif %}
-                            
-                    {% endfor %}
-                        
-                {% else %}
-                    <p>No post</p>
-                {% endif %}
-                    
-            </td>
+            <td>
+                <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#helpData-{{request.id}}" style="box-shadow: 3px 3px 10px rgba(255, 255, 255, 0.6)">Help Post</button>
+                
+                <!-- Help form modal -->
+                <div
+                    class="modal fade"
+                    id="helpData-{{request.id}}"
+                    tabindex="-1"
+                    aria-labelledby="ModalLabel-helpData"
+                    aria-hidden="true"
+                    >
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h3
+                                    class="modal-title"
+                                    id="ModalLabel-{{request.id}}"
+                                >
+                                View Help Post
+                                </h3>
+                                <button
+                                    type="button"
+                                    class="btn-close"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close"
+                                ></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="help-posts" data-request-id="{{ request.id }}">
+                                    {% for post in help_post %}
+                                        <div class="post" data-blood-id="{{ post.blood_request_id }}" style="display: none;">
+                                            <p>{{ post.helper.user.username }}</p>
+                                            <p>{{ post.name }}</p>
+                                            <p>{{ post.phone }}</p>
+                                            <p>{{ post.created_at }}</p>
+                                            <p>{{ post.message }}</p>
+                                            <hr>
+                                        </div>
+                                    {% endfor %}
+                                    <p class="no-help-msg" style="display: none;">No help post found</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </td>            
             <td>{{ request.status }}</td>
             <td>
                 
@@ -294,7 +310,7 @@
     <p>No active blood requests available.</p>
 {% endif %}
 
-
+<!-- Adding map here -->
 <div id="map"></div>
 
 
@@ -471,6 +487,28 @@
             }).addTo(map);
         }
     }
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const allContainers = document.querySelectorAll('.help-posts');
+
+        allContainers.forEach(container => {
+            const requestId = container.getAttribute('data-request-id');
+            const posts = container.querySelectorAll('.post');
+            let found = false;
+
+            posts.forEach(post => {
+                if (post.getAttribute('data-blood-id') === requestId) {
+                    post.style.display = 'block';
+                    found = true;
+                }
+            });
+
+            if (!found) {
+                container.querySelector('.no-help-msg').style.display = 'block';
+            }
+        });
+    });
 </script>
 
 {% endblock %}
