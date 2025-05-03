@@ -49,7 +49,8 @@ def user_logout(request):
     return redirect('login')
 
 def dashboard(request):
-
+    if not request.user.is_authenticated:
+        return redirect("login")
     my_requests_for_blood = BloodRequest.objects.filter(requester=request.user).order_by("-created_at")
     active_requests_myGroup = BloodRequest.objects.filter(blood_group=request.user.donorprofile.blood_group, donors__in=[request.user]).exclude(requester=request.user).order_by("-created_at")
     #, accepted_donors__in=[request.user] 
@@ -298,8 +299,6 @@ def help_form(request, sender_id, requester_id, request_id):
     return redirect('dashboard')  # Redirect back to the dashboard
 
 
-def custom_blood_request(request):
-    return render(request, 'custom_blood_request.html')
 
 
 def haversine(lat1, lon1, lat2, lon2):
@@ -320,7 +319,8 @@ def create_blood_request(request):
     if request.method == "POST":
         lat = float(request.POST.get("patient_latitude", 0))
         lng = float(request.POST.get("patient_longitude", 0))
-        radius = float(request.POST.get("the_radius", 1))  # in km
+        radius_str = request.POST.get("the_radius", "").strip()
+        radius = float(radius_str) if radius_str else 1.0  # Safe default
         blood_group = request.POST.get("blood_group")
         address = request.POST.get("address")
         contact = request.POST.get("contact")
@@ -329,40 +329,58 @@ def create_blood_request(request):
         donation_time = request.POST.get("donation_time")
 
         filtered_donors = []
-
         for donor in donors.filter(blood_group=blood_group):
             if donor.latitude and donor.longitude:
                 distance = haversine(lat, lng, donor.latitude, donor.longitude)
                 if distance <= radius:
                     filtered_donors.append(donor)
 
-                    # Create CustomBloodRequest for each donor if not already created
-                    existing = CustomBloodRequest.objects.filter(
-                        requester=request.user,
-                        donors=donor.user,
-                        blood_group=blood_group,
-                        receiver_latitude=lat,
-                        receiver_longitude=lng
-                    ).first()
+        if not filtered_donors:
+            messages.error(request, "No donor found within the selected radius.")
+            return render(request, "custom_blood_request.html", {"donors": donors})
 
-                    if not existing:
-                        request_entry = CustomBloodRequest.objects.create(
-                            blood_group=blood_group,
-                            requester=request.user,
-                            detail_address=address,
-                            contact_number=contact,
-                            note=donation_note,
-                            donation_date=donation_date or None,
-                            donation_time=donation_time or None,
-                            receiver_latitude=lat,
-                            receiver_longitude=lng,
-                            created_at=datetime.now()
-                        )
-                        request_entry.donors.add(donor.user)
+        messages.success(request, f"Donor found: {len(filtered_donors)}")
+
+        created_donor_names = []
+
+        for donor in filtered_donors:
+            # Check if a request already exists for this donor
+            existing = CustomBloodRequest.objects.filter(
+                requester=request.user,
+                donors=donor.user,
+                blood_group=blood_group,
+                receiver_latitude=lat,
+                receiver_longitude=lng
+                
+            ).first()
+
+            if not existing:
+                request_entry = CustomBloodRequest.objects.create(
+                    blood_group=blood_group,
+                    requester=request.user,
+                    detail_address=address,
+                    contact_number=contact,
+                    note=donation_note,
+                    donation_date=donation_date or None,
+                    donation_time=donation_time or None,
+                    receiver_latitude=lat,
+                    receiver_longitude=lng,
+                    created_at=datetime.now()
+                )
+                request_entry.donors.add(donor.user)
+                created_donor_names.append(donor.user.username)
+
+        if created_donor_names:
+            donor_list_str = ", ".join(created_donor_names)
+            messages.success(request, f"Request sent successfully to: {donor_list_str}")
+        else:
+            messages.info(request, "All selected donors have already received the request.")
 
         return render(request, "custom_blood_request.html", {
-            "donors": filtered_donors,
+            "donors": filtered_donors
         })
 
-    return render(request, "custom_blood_request.html", {"donors": donors})
+    return render(request, "custom_blood_request.html", {
+        "donors": donors
+    })
 

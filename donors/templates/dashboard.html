@@ -58,7 +58,7 @@
                         {% for donor in request.accepted_donors.all %}
                         <tbody>
                             <tr>
-                                <td>{{ donor.username }}- {{donor.id}}</td>
+                                <td>{{ donor.username }}- {{donor.id}} {{donor.donorprofile.phone}}</td>
                                 <td>
                                     {% if donor in request.final_donors.all %}
                                         <p class="badge bg-success">Approved</p>

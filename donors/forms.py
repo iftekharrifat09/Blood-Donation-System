@@ -7,12 +7,13 @@ class RegisterForm(forms.ModelForm):
     password = forms.CharField(widget=forms.PasswordInput)
     blood_group = forms.ChoiceField(choices=BLOOD_GROUPS)
     phone = forms.CharField(max_length=15)
+    detailed_address = forms.CharField(widget=forms.Textarea, required=True)  # Allow optional
     latitude = forms.FloatField(required=False)  # Allow optional
     longitude = forms.FloatField(required=False)
 
     class Meta:
         model = User
-        fields = ["username", "email", "password", "blood_group", "phone"]
+        fields = ["username", "email", "password", "blood_group", "phone", "detailed_address"]
 
     def save(self, commit=True):
         user = super().save(commit=False)
