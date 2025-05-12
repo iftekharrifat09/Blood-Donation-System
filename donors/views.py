@@ -39,7 +39,7 @@ def user_login(request):
             messages.error(request, "Invalid credentials")
     else:
         form = AuthenticationForm()
-    return render(request, 'register.html', {'form': form, 'type':'login'})
+    return render(request, 'login.html', {'form': form, 'type':'login'})
 
 
 @login_required

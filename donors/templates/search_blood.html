@@ -1,134 +1,188 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<style>
-    #map {
-        width: 100%;
-        height: 100vh;
-    }
-    .leaflet-routing-container{
-        display: none;
-    }
-</style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
- <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
 
+<div class="min-h-screen bg-gray-50 p-4 md:p-8">
+  <div class="max-w-7xl mx-auto">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Left Column - Form -->
+      <div class="lg:col-span-1 bg-white rounded-xl shadow-md overflow-hidden p-6">
+        <h2 class="text-2xl font-bold text-red-600 mb-6">Blood Request Form</h2>
+        
+        <form method="post" class="space-y-4">
+          {% csrf_token %}
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Blood Group</label>
+            <select name="blood_group" required
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500">
+              <option value="" disabled selected>Select Blood Group</option>
+              <option value="A+" {% if request.POST.blood_group == "A+" %}selected{% endif %}>A+</option>
+              <option value="A-" {% if request.POST.blood_group == "A-" %}selected{% endif %}>A-</option>
+              <option value="B+" {% if request.POST.blood_group == "B+" %}selected{% endif %}>B+</option>
+              <option value="B-" {% if request.POST.blood_group == "B-" %}selected{% endif %}>B-</option>
+              <option value="O+" {% if request.POST.blood_group == "O+" %}selected{% endif %}>O+</option>
+              <option value="O-" {% if request.POST.blood_group == "O-" %}selected{% endif %}>O-</option>
+              <option value="AB+" {% if request.POST.blood_group == "AB+" %}selected{% endif %}>AB+</option>
+              <option value="AB-" {% if request.POST.blood_group == "AB-" %}selected{% endif %}>AB-</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Search Radius (km)</label>
+            <input type="number" name="radius" value="{{ request.POST.radius }}" step="0.1" min="1" required
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
+              placeholder="e.g. 5">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Location Details (Optional)</label>
+            <input type="text" name="detail_address"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
+              placeholder="Building, landmark, etc.">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Patient Details</label>
+            <textarea name="description" required rows="4"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
+              placeholder="Describe the patient's condition and requirements"></textarea>
+          </div>
+          
+          <button type="submit"
+            class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-md transition duration-300">
+            Search Donors
+          </button>
+        </form>
+      </div>
 
-<form method="post">
-    {% csrf_token %}
-    <label>Select Blood Group:</label>
-    <select name="blood_group" required>
-        <option value="" disabled selected>Blood Group</option>
-        <option value="A+" {% if request.POST.blood_group == "A+" %}selected{% endif %}>A+</option>
-        <option value="A-" {% if request.POST.blood_group == "A-" %}selected{% endif %}>A-</option>
-        <option value="B+" {% if request.POST.blood_group == "B+" %}selected{% endif %}>B+</option>
-        <option value="B-" {% if request.POST.blood_group == "B-" %}selected{% endif %}>B-</option>
-        <option value="O+" {% if request.POST.blood_group == "O+" %}selected{% endif %}>O+</option>
-        <option value="O-" {% if request.POST.blood_group == "O-" %}selected{% endif %}>O-</option>
-        <option value="AB+" {% if request.POST.blood_group == "AB+" %}selected{% endif %}>AB+</option>
-        <option value="AB-" {% if request.POST.blood_group == "AB-" %}selected{% endif %}>AB-</option>
-    </select>
-    
-    <label>Search Radius (km):</label>
-    <input type="number" name="radius" value="{{ request.POST.radius }}" step="0.1" min="1" required  placeholder="Enter search radius">
+      <!-- Right Column - Map and Results -->
+      <div class="lg:col-span-2 space-y-6">
+        <!-- Donors List -->
+        {% if donors %}
+        <div class="bg-white rounded-xl shadow-md overflow-hidden p-6">
+          <h3 class="text-xl font-bold text-gray-800 mb-4">Available Donors ({{ donors|length }})</h3>
+          <div class="space-y-3">
+            {% for donor in donors %}
+            <div class="flex items-center justify-between p-3 border-b border-gray-100 hover:bg-gray-50">
+              <div>
+                <h4 class="font-medium text-gray-800">{{ donor.user.username }}</h4>
+                <p class="text-sm text-gray-600">{{ donor.blood_group }} • {{ donor.distance|floatformat:2 }} km away</p>
+              </div>
+              <button onclick="sendRequest('{{ donor.user.id }}')"
+                class="px-4 py-2 bg-red-100 text-red-600 rounded-md hover:bg-red-200 transition">
+                Request
+              </button>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
 
-    <label>Enter Your Detailed Location (Optional)</label>
-    <input type="text" name="detail_address" placeholder="Location Details">
-
-    <label>Enter Details of the Patient</label>
-    <textarea name="description" required placeholder="Patient Details"></textarea>
-
-    <button type="submit">Send Blood Request</button>
-</form>
-
-
-<h3>Donors Found:</h3>
-{% for donor in donors %}
-    <p>{{ donor.user.username }} - {{ donor.longitude }} - {{ donor.latitude }} ({{ donor.blood_group }})</p>
-{% endfor %}
-
-<div id="map"></div>
+        <!-- Map Container -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+          <div id="map" class="h-96 w-full rounded-xl"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
 
 <script>
-    var userLat = "{{ request.user.donorprofile.latitude }}";
-    var userLng = "{{ request.user.donorprofile.longitude }}";
-    var searchRadius = "{{ request.POST.radius|default:2 }}" * 1000;  // Convert km to meters
+  var userLat = "{{ request.user.donorprofile.latitude }}";
+  var userLng = "{{ request.user.donorprofile.longitude }}";
+  var searchRadius = "{{ request.POST.radius|default:2 }}" * 1000;  // Convert km to meters
 
-    if (!userLat || !userLng) {
-        alert("Your location is not set. Please update your location.");
-    } else {
-        var map = L.map("map").setView([userLat, userLng], 14);
-        googleHybrid = L.tileLayer('http://{s}.google.com/vt?lyrs=s,h&x={x}&y={y}&z={z}', {
-            maxZoom: 20,
-            subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
-        });
-        googleHybrid.addTo(map);
+  if (!userLat || !userLng) {
+    alert("Your location is not set. Please update your location.");
+  } else {
+    var map = L.map("map").setView([userLat, userLng], 14);
+    googleHybrid = L.tileLayer('http://{s}.google.com/vt?lyrs=s,h&x={x}&y={y}&z={z}', {
+      maxZoom: 20,
+      subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+    });
+    googleHybrid.addTo(map);
 
-         // Show user's location with marker
-        L.marker([userLat, userLng]).addTo(map).bindPopup("My Location").openPopup();
+    // Show user's location with marker
+    L.marker([userLat, userLng]).addTo(map)
+      .bindPopup("<b>Your Location</b>").openPopup();
 
-        // Draw a circle around user's location with search radius
-        L.circle([userLat, userLng], {
-            color: "blue",
-            fillColor: "blue",
-            fillOpacity: 0.1,
-            radius: searchRadius  // Radius in meters
-        }).addTo(map).bindPopup("Search Radius: " + (searchRadius / 1000) + " km");
+    // Draw a circle around user's location with search radius
+    L.circle([userLat, userLng], {
+      color: "#3b82f6",
+      fillColor: "#3b82f6",
+      fillOpacity: 0.1,
+      radius: searchRadius
+    }).addTo(map).bindPopup("Search Radius: " + (searchRadius / 1000) + " km");
 
-        // Show donors within search radius with custom marker
-        var redIcon = L.icon({
-            iconUrl: 'https://static.vecteezy.com/system/resources/previews/018/888/895/non_2x/red-map-icon-png.png', // Red marker icon
-            iconSize: [40, 40], // Adjust size if needed
-            iconAnchor: [16, 32], 
-            popupAnchor: [0, -32]
-        });
+    // Custom red icon for donors
+    var redIcon = L.icon({
+      iconUrl: 'https://static.vecteezy.com/system/resources/previews/018/888/895/non_2x/red-map-icon-png.png',
+      iconSize: [40, 40],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32]
+    });
 
+    // Collect all waypoints
+    var waypoints = [L.latLng(userLat, userLng)];
 
-        // Collect all waypoints (starting with user's location)
-        var waypoints = [L.latLng(userLat, userLng)];
+    {% for donor in donors %}
+      (function() {
+        var donorLatLng = L.latLng({{ donor.latitude }}, {{ donor.longitude }});
+        var popupContent = `
+          <div class="font-medium">${"{{ donor.user.username }}"}</div>
+          <div class="text-sm">${"{{ donor.blood_group }}"} • ${"{{ donor.distance|floatformat:2 }}"} km</div>
+          <button onclick="sendRequest('{{ donor.user.id }}')" 
+            class="mt-2 px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700">
+            Send Request
+          </button>
+        `;
 
-        {% for donor in donors %}
-            (function() {
-                var donorLatLng = L.latLng({{ donor.latitude }}, {{ donor.longitude }});
-                var popupContent = "{{ donor.user.username }} ({{ donor.blood_group }})";
+        L.marker(donorLatLng, {icon: redIcon})
+          .addTo(map)
+          .bindPopup(popupContent);
 
-                // Add donor marker
-                L.marker(donorLatLng, {icon: redIcon})
-                    .addTo(map)
-                    .bindPopup(popupContent);
+        waypoints.push(donorLatLng);
+      })();
+    {% endfor %}
 
-                // Add donor location to waypoints
-                waypoints.push(donorLatLng);
-            })();
-        {% endfor %}
-
-        // Create a single route for all donors
-        if (waypoints.length > 1) { 
-            L.Routing.control({
-                waypoints: waypoints,
-                addWaypoints: false,
-                createMarker: function() { return null; } // Hide default markers
-            }).addTo(map);
+    // Create route if donors found
+    if (waypoints.length > 1) { 
+      L.Routing.control({
+        waypoints: waypoints,
+        addWaypoints: false,
+        createMarker: function() { return null; },
+        lineOptions: {
+          styles: [{color: '#ef4444', opacity: 0.7, weight: 5}]
         }
+      }).addTo(map);
     }
+  }
 
-    function sendRequest(donorId) {
-        fetch("{% url 'send_request' %}", {
-            method: "POST",
-            headers: {
-                "X-CSRFToken": "{{ csrf_token }}",
-                "Content-Type": "application/x-www-form-urlencoded"
-            },
-            body: `donor_id=${donorId}`
-        })
-        .then(response => response.json())
-        .then(data => alert(data.message));
-    }
+  function sendRequest(donorId) {
+    fetch("{% url 'send_request' %}", {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": "{{ csrf_token }}",
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: `donor_id=${donorId}`
+    })
+    .then(response => response.json())
+    .then(data => {
+      alert(data.message);
+      if(data.success) {
+        // Optional: Update UI after successful request
+      }
+    });
+  }
 </script>
 
 {% endblock %}
