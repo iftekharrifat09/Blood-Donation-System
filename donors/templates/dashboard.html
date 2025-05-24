@@ -153,7 +153,7 @@
             {% if request.accepted_donors.all %}
             <div class="flex justify-between gap-2 mb-4">
               <button onclick="document.getElementById('modal_{{ request.id }}').showModal()"
-                class="flex items-center px-6 bg-blue-500 text-white rounded-lg hover:bg-white hover:text-blue-500 hover:border transition-colors">
+                class="flex items-center py-2 px-6 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
@@ -254,7 +254,7 @@
                 </div>
                 <div class="col-span-2">
                   <p class="text-sm text-gray-500">Address</p>
-                  <p>{{ donor.donorprofile.detailedAddress }}</p>
+                  <p>{{ donor.donorprofile.detailed_address }}</p>
                 </div>
               </div>
             </div>
@@ -267,9 +267,9 @@
               {% else %}
                 <div class="flex gap-2 mt-2">
                   <a href="{% url 'approve_blood_request' request.id donor.id %}" 
-                    class="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600">Approve</a>
+                    class="btn bg-green-600 text-white">Approve</a>
                   <a href="{% url 'reject_donor_request' request.id donor.id %}" 
-                    class="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600">Reject</a>
+                    class="btn btn-error text-white">Reject</a>
                 </div>
               {% endif %}
             </div>
@@ -280,7 +280,7 @@
       
       <div class="modal-action p-4 bg-gray-50">
         <form method="dialog">
-          <button class="btn w-full py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Close</button>
+          <button class="btn bg-red-600 text-white">Close</button>
           
         </form>
       </div>
