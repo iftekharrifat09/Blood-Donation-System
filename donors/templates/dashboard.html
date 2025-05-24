@@ -29,30 +29,77 @@
 
 <h2>My blood requests to other (Emergency)</h2> {% endcomment %}
 
-<section class="mt-16 mb-20">
-    <div class="container mx-auto py-16 bg-blue-50 rounded-2xl">
-      <div class="grid grid-cols-2 w-full">
-        <div class="p-8">
-          <img
-            src="https://i.ibb.co/21fYtttY/donor2.png"
-            class="w-3/4 rounded-lg"
-          />
-        </div>
-        <div class="p-8 space-y-2">
-          <h2 class="text-2xl font-semibold">Welcome {{ user.username }}</h2>
-          <p class="text-blue-500">
-            Your blood group: {{ user.donorprofile.blood_group }}
-          </p>
-          <p class="text-blue-500">
-            Your Current Location: {{ user.donorprofile.latitude }} -
-            {{user.donorprofile.longitude}}
-          </p>
-  
-          <h2 class="text-blue-500">My blood requests to other (Emergency)</h2>
-        </div>
+
+  <section class=" mb-30 ">
+  <div class="relative overflow-hidden bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl py-10 h-[600px]">
+    <div class="absolute -right-20 -top-20 w-64 h-64 bg-blue-100 rounded-full opacity-20"></div>
+    <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-indigo-100 rounded-full opacity-20"></div>
+    
+    <div class="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-8 p-8">
+
+
+       <div class="flex items-center justify-center p-6">
+  <div class="relative w-full max-w-2xl">
+    <div class="overflow-hidden rounded-2xl shadow-xl transform hover:scale-[1.02] transition duration-500 ease-in-out">
+      <img
+        src="https://images.unsplash.com/photo-1615461066841-6116e61058f4?w=1000&auto=format&fit=crop&q=80&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8Ymxvb2QlMjBkb25hdGlvbnxlbnwwfHwwfHx8MA%3D%3D"
+        class="w-full h-auto object-cover aspect-video"
+        alt="Blood donation hero image"
+      />
+    </div>
+    <div class="absolute -bottom-5 -right-5 bg-white px-5 py-3 rounded-xl shadow-lg border border-blue-200 hover:shadow-xl transition-all duration-300">
+      <div class="flex items-center space-x-2">
+        <div class="h-3 w-3 bg-green-600 rounded-full animate-pulse"></div>
+        <span class="text-blue-700 font-semibold text-lg">Active Donor</span>
       </div>
     </div>
-  </section>
+  </div>
+</div>
+      <!-- Profile Info Section -->
+      <div class="flex flex-col justify-center space-y-4 p-4">
+        <div class="mb-6">
+          <h1 class="text-4xl font-bold text-gray-800 mb-1">Welcome, <span class="text-blue-600">{{ user.username }}</span></h1>
+          <div class="w-16 h-1 bg-blue-400 rounded-full"></div>
+        </div>
+        
+        <div class="space-y-4">
+          <div class="flex items-start">
+            <div class="flex-shrink-0 mt-1">
+              <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div class="ml-3">
+              <p class="text-gray-700">
+                <span class="font-medium text-gray-900">Blood Group:</span> 
+                <span class="px-2 py-1 ml-2 bg-red-50 text-red-600 rounded-md font-semibold">{{ user.donorprofile.blood_group }}</span>
+              </p>
+            </div>
+          </div>
+          
+          <div class="flex items-start">
+            <div class="flex-shrink-0 mt-1">
+              <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+              </svg>
+            </div>
+            <div class="ml-3">
+              <p class="text-gray-700">
+                <span class="font-medium text-gray-900">Current Location:</span> 
+                <span class="ml-2">{{ user.donorprofile.latitude }} - {{user.donorprofile.longitude}}</span>
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        
+      </div>
+    </div>
+  </div>
+</section>
+
+
 
 
 
@@ -62,7 +109,7 @@
 
 
 {% comment %} data for card {% endcomment %}
-<h2 class="text-4xl font-bold text-center text-blue-500 py-6">My Blood Requests</h2>
+<h2 class="text-2xl font-bold text-center text-blue-500 py-6">My Blood Requests</h2>
 <section class="container mx-auto py-8 px-4 flex gap-6 " >
     
     <div class="max-h-[80vh]   overflow-y-auto w-[50%] mx-auto">
@@ -486,58 +533,9 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 {% comment %} 3rd table {% endcomment %}
 <section class="container px-4 mx-auto  py-20">
-    <h2 class="mb-8 text-3xl font-bold text-center text-blue-700 md:text-4xl">Active Blood Requests (Other Blood Types)</h2>
+    <h2 class="mb-8 text-3xl font-bold text-center text-blue-700 md:text-3xl">Active Blood Requests (Other Blood Types)</h2>
 
     {% if active_requests_otherGroup %}
     <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2">
