@@ -36,7 +36,7 @@ class RegisterForm(forms.ModelForm):
                 user=user,
                 blood_group=self.cleaned_data["blood_group"],
                 phone=self.cleaned_data["phone"],
-                detailedAddress = self.cleaned_data["detailedAdress"],
+                detailed_address = self.cleaned_data["detailedAdress"],
                 latitude=self.cleaned_data.get("latitude", None),
                 longitude=self.cleaned_data.get("longitude", None),
             )
